@@ -36,11 +36,8 @@ class TestSplitNodesDelimiter(unittest.TestCase):
 
     def test_multiple_delimiters(self):
         node = TextNode("This has **bold** and `code` and *italic*", TextType.TEXT)
-        # First split for bold
         nodes_after_bold = split_nodes_delimiter([node], "**", TextType.BOLD)
-        # Then split for code
         nodes_after_code = split_nodes_delimiter(nodes_after_bold, "`", TextType.CODE)
-        # Finally split for italic
         new_nodes = split_nodes_delimiter(nodes_after_code, "*", TextType.ITALIC)
         expected = [
             TextNode("This has ", TextType.TEXT),
@@ -89,13 +86,13 @@ class TestSplitNodesDelimiter(unittest.TestCase):
 
     def test_non_text_nodes_unchanged(self):
         node1 = TextNode("This is text", TextType.TEXT)
-        node2 = TextNode("This is bold", TextType.BOLD)  # Should remain unchanged
+        node2 = TextNode("This is bold", TextType.BOLD) 
         node3 = TextNode("This is more text", TextType.TEXT)
         new_nodes = split_nodes_delimiter([node1, node2, node3], "**", TextType.BOLD)
         expected = [
-            TextNode("This is text", TextType.TEXT),  # No delimiters, so unchanged
-            TextNode("This is bold", TextType.BOLD),  # Non-text type, so unchanged
-            TextNode("This is more text", TextType.TEXT),  # No delimiters, so unchanged
+            TextNode("This is text", TextType.TEXT),
+            TextNode("This is bold", TextType.BOLD),
+            TextNode("This is more text", TextType.TEXT),
         ]
         self.assertEqual(new_nodes, expected)
 
@@ -116,12 +113,8 @@ class TestSplitNodesDelimiter(unittest.TestCase):
         self.assertEqual(new_nodes, expected)
 
     def test_nested_delimiters_as_text(self):
-        # This tests that delimiters inside other delimiters are treated as text
-        # when processed in the correct order
         node = TextNode("Text with `code **bold** inside` code", TextType.TEXT)
-        # First process code delimiters
         nodes_after_code = split_nodes_delimiter([node], "`", TextType.CODE)
-        # The bold inside code should remain as text within the code block
         expected = [
             TextNode("Text with ", TextType.TEXT),
             TextNode("code **bold** inside", TextType.CODE),
@@ -133,7 +126,9 @@ class TestExtractMarkdownImages(unittest.TestCase):
     def test_extract_single_image(self):
         text = "This is text with an ![image](https://i.imgur.com/example.png)"
         matches = extract_markdown_images(text)
-        self.assertListEqual([("image", "https://i.imgur.com/example.png")], matches)
+        expected = [("image", "https://i.imgur.com/example.png")]
+        self.assertListEqual(expected, matches)
+
 
     def test_extract_multiple_images(self):
         text = "![first](http://example.com/1.png) and ![second](http://site.com/2.jpg)"
@@ -144,26 +139,103 @@ class TestExtractMarkdownImages(unittest.TestCase):
         ]
         self.assertListEqual(expected, matches)
 
+
     def test_extract_no_images(self):
         text = "This is plain text with no images"
         matches = extract_markdown_images(text)
-        self.assertListEqual([], matches)
+        expected = []
+        self.assertListEqual(expected, matches)
+
 
     def test_extract_image_with_spaces_in_alt(self):
         text = "![my alt text](https://example.com/image.png)"
         matches = extract_markdown_images(text)
-        self.assertListEqual([("my alt text", "https://example.com/image.png")], matches)
+        expected = [("my alt text", "https://example.com/image.png")]
+        self.assertListEqual(expected, matches)
+
 
     def test_extract_image_with_special_chars_in_url(self):
         text = "![icon](https://example.com/image.png?width=100&height=200)"
         matches = extract_markdown_images(text)
-        self.assertListEqual([("icon", "https://example.com/image.png?width=100&height=200")], matches)
+        expected = [("icon", "https://example.com/image.png?width=100&height=200")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_image_with_empty_alt_text(self):
+        text = "Here is an image ![](https://example.com/image.png)"
+        matches = extract_markdown_images(text)
+        expected = [("", "https://example.com/image.png")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_escaped_image_syntax(self):
+        text = r"This is escaped \!\[not an image\](https://example.com/fake.png)"
+        matches = extract_markdown_images(text)
+        expected = []
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_image_with_parentheses_in_url(self):
+        text = "![wiki](https://en.wikipedia.org/wiki/Example_(disambiguation))"
+        matches = extract_markdown_images(text)
+        expected = [("wiki", "https://en.wikipedia.org/wiki/Example_(disambiguation)")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_adjacent_images(self):
+        text = "![first](1.png)![second](2.png)![third](3.jpg)"
+        matches = extract_markdown_images(text)
+        expected = [
+            ("first", "1.png"),
+            ("second", "2.png"),
+            ("third", "3.jpg")
+        ]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_image_with_unicode_in_alt(self):
+        text = "![图片 🎨](https://example.com/image.png)"
+        matches = extract_markdown_images(text)
+        expected = [("图片 🎨", "https://example.com/image.png")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_image_with_data_url(self):
+        text = "![icon](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA)"
+        matches = extract_markdown_images(text)
+        expected = [("icon", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_image_with_very_long_url(self):
+        long_url = "https://example.com/" + "a" * 1000 + ".png"
+        text = f"![long]({long_url})"
+        matches = extract_markdown_images(text)
+        expected = [("long", long_url)]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_image_with_uppercase_scheme(self):
+        text = "![image](HTTPS://EXAMPLE.COM/image.png)"
+        matches = extract_markdown_images(text)
+        expected = [("image", "HTTPS://EXAMPLE.COM/image.png")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_return_type_is_list(self):
+        text = "![img](url.png)"
+        matches = extract_markdown_images(text)
+        self.assertIsInstance(matches, list)
+        self.assertGreater(len(matches), 0)
+
 
 class TestExtractMarkdownLinks(unittest.TestCase):
     def test_extract_single_link(self):
         text = "This is [a link](https://www.example.com)"
         matches = extract_markdown_links(text)
-        self.assertListEqual([("a link", "https://www.example.com")], matches)
+        expected = [("a link", "https://www.example.com")]
+        self.assertListEqual(expected, matches)
+
 
     def test_extract_multiple_links(self):
         text = "[first](http://site1.com) and [second](http://site2.com)"
@@ -174,18 +246,24 @@ class TestExtractMarkdownLinks(unittest.TestCase):
         ]
         self.assertListEqual(expected, matches)
 
+
     def test_distinguish_links_from_images(self):
         text = "![image](pic.png) is not [link](page.html)"
         link_matches = extract_markdown_links(text)
         image_matches = extract_markdown_images(text)
         
-        self.assertListEqual([("link", "page.html")], link_matches)
-        self.assertListEqual([("image", "pic.png")], image_matches)
+        expected_links = [("link", "page.html")]
+        expected_images = [("image", "pic.png")]
+        self.assertListEqual(expected_links, link_matches)
+        self.assertListEqual(expected_images, image_matches)
+
 
     def test_extract_link_with_title(self):
         text = "[Click here for more info](https://docs.example.com)"
         matches = extract_markdown_links(text)
-        self.assertListEqual([("Click here for more info", "https://docs.example.com")], matches)
+        expected = [("Click here for more info", "https://docs.example.com")]
+        self.assertListEqual(expected, matches)
+
 
     def test_extract_relative_links(self):
         text = "[About](/about) and [Contact](./contact.html)"
@@ -196,22 +274,93 @@ class TestExtractMarkdownLinks(unittest.TestCase):
         ]
         self.assertListEqual(expected, matches)
 
+
+    def test_extract_link_with_empty_text(self):
+        text = "Check this out [](https://example.com)"
+        matches = extract_markdown_links(text)
+        expected = [("", "https://example.com")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_escaped_link_syntax(self):
+        text = r"This is escaped \[not a link\](https://example.com)"
+        matches = extract_markdown_links(text)
+        expected = []
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_link_with_parentheses_in_url(self):
+        text = "[Wikipedia](https://en.wikipedia.org/wiki/Python_(programming_language))"
+        matches = extract_markdown_links(text)
+        expected = [("Wikipedia", "https://en.wikipedia.org/wiki/Python_(programming_language)")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_adjacent_links(self):
+        text = "[first](1.html)[second](2.html)[third](3.html)"
+        matches = extract_markdown_links(text)
+        expected = [
+            ("first", "1.html"),
+            ("second", "2.html"),
+            ("third", "3.html")
+        ]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_link_with_title_attribute(self):
+        text = '[link](https://example.com "This is a title")'
+        matches = extract_markdown_links(text)
+        self.assertIsInstance(matches, list)
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0][0], "link")
+        self.assertIn("https://example.com", matches[0][1])
+
+
+    def test_extract_link_with_unicode_in_text(self):
+        text = "[文档 📚](https://example.com/docs)"
+        matches = extract_markdown_links(text)
+        expected = [("文档 📚", "https://example.com/docs")]
+        self.assertListEqual(expected, matches)
+
+
+    def test_extract_link_with_very_long_url(self):
+        long_url = "https://example.com/" + "b" * 1000 + ".html"
+        text = f"[long link]({long_url})"
+        matches = extract_markdown_links(text)
+        expected = [("long link", long_url)]
+        self.assertListEqual(expected, matches)
+
+
+    def test_return_type_is_list(self):
+        text = "[link](url.html)"
+        matches = extract_markdown_links(text)
+        self.assertIsInstance(matches, list)
+        self.assertGreater(len(matches), 0)
+
+
 class TestEdgeCases(unittest.TestCase):
     def test_empty_string(self):
-        self.assertListEqual([], extract_markdown_images(""))
-        self.assertListEqual([], extract_markdown_links(""))
+        expected = []
+        self.assertListEqual(expected, extract_markdown_images(""))
+        self.assertListEqual(expected, extract_markdown_links(""))
+
 
     def test_malformed_syntax(self):
         text = "![missing bracket (http://example.com) and [missing paren](/link"
         image_matches = extract_markdown_images(text)
         link_matches = extract_markdown_links(text)
-        self.assertListEqual([], image_matches)
-        self.assertListEqual([], link_matches)
+        expected = []
+        self.assertListEqual(expected, image_matches)
+        self.assertListEqual(expected, link_matches)
+
 
     def test_nested_brackets(self):
         text = "[link [nested]](http://example.com)"
         matches = extract_markdown_links(text)
         self.assertIsInstance(matches, list)
+        if len(matches) > 0:
+            self.assertEqual(matches[0][1], "http://example.com")
+
 
     def test_mixed_content(self):
         text = """
@@ -228,5 +377,54 @@ class TestEdgeCases(unittest.TestCase):
         self.assertListEqual(expected_links, link_matches)
 
 
-if __name__ == "__main__":
+    def test_adjacent_mixed_markup(self):
+        text = "text![img](url.png)[link](url.html)text"
+        image_matches = extract_markdown_images(text)
+        link_matches = extract_markdown_links(text)
+        
+        expected_images = [("img", "url.png")]
+        expected_links = [("link", "url.html")]
+        
+        self.assertListEqual(expected_images, image_matches)
+        self.assertListEqual(expected_links, link_matches)
+
+
+    def test_incomplete_closing_image(self):
+        text = "![alt](url.png and more text"
+        matches = extract_markdown_images(text)
+        self.assertIsInstance(matches, list)
+
+
+    def test_incomplete_closing_link(self):
+        text = "[text](url.html and more text"
+        matches = extract_markdown_links(text)
+        self.assertIsInstance(matches, list)
+
+
+    def test_return_type_with_no_matches(self):
+        text = "Plain text with no markdown"
+        image_matches = extract_markdown_images(text)
+        link_matches = extract_markdown_links(text)
+        
+        self.assertIsInstance(image_matches, list)
+        self.assertIsInstance(link_matches, list)
+        self.assertEqual(len(image_matches), 0)
+        self.assertEqual(len(link_matches), 0)
+
+
+    def test_whitespace_in_urls(self):
+        text = "![img](url with spaces.png)"
+        matches = extract_markdown_images(text)
+        self.assertIsInstance(matches, list)
+
+
+    def test_markdown_in_code_context(self):
+        text = "`![not an image](fake.png)` and `[not a link](fake.html)`"
+        image_matches = extract_markdown_images(text)
+        link_matches = extract_markdown_links(text)
+        self.assertIsInstance(image_matches, list)
+        self.assertIsInstance(link_matches, list)
+
+
+if __name__ == '__main__':
     unittest.main()
