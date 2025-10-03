@@ -128,9 +128,6 @@ class TestSplitNodesDelimiter(unittest.TestCase):
             TextNode(" code", TextType.TEXT),
         ]
         self.assertEqual(nodes_after_code, expected)
-import unittest
-
-import unittest
 
 class TestExtractMarkdownImages(unittest.TestCase):
     def test_extract_single_image(self):
