@@ -1,7 +1,7 @@
 import unittest
 
-from text_processing import split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks
-from textnode import TextNode, TextType
+from text_processing import *
+from textnode import TextNode, TextType, BlockType
 
 class TestSplitNodesDelimiter(unittest.TestCase):
     def test_code_delimiter(self):
@@ -1018,5 +1018,75 @@ This is the same paragraph on a new line
             ]
         )
 
+class TestBlockToBlockType(unittest.TestCase):
+
+    def test_paragraph(self):
+        self.assertEqual(block_to_block_type("This is a regular paragraph."), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("Line one\nLine two\nLine three"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("Just some text"), BlockType.PARAGRAPH)
+
+    def test_heading(self):
+        self.assertEqual(block_to_block_type("# Heading 1"), BlockType.HEADING)
+        self.assertEqual(block_to_block_type("## Heading 2"), BlockType.HEADING)
+        self.assertEqual(block_to_block_type("###### Heading 6"), BlockType.HEADING)
+        self.assertEqual(block_to_block_type("#Heading without space"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("####### Too many hashes"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("#"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("# "), BlockType.PARAGRAPH)
+
+    def test_code_block(self):
+        self.assertEqual(block_to_block_type("```\ncode here\n```"), BlockType.CODE)
+        self.assertEqual(block_to_block_type("```python\ndef hello():\n    pass\n```"), BlockType.CODE)
+        self.assertEqual(block_to_block_type("```\nline1\nline2\nline3\n```"), BlockType.CODE)
+    
+        self.assertEqual(block_to_block_type("```\nunclosed"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("unopened\n```"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("```"), BlockType.PARAGRAPH)
+
+    def test_quote_block(self):
+        self.assertEqual(block_to_block_type("> This is a quote"), BlockType.QUOTE)
+        self.assertEqual(block_to_block_type("> Line one\n> Line two\n> Line three"), BlockType.QUOTE)
+        self.assertEqual(block_to_block_type(">Quote without space"), BlockType.QUOTE)
+        
+        self.assertEqual(block_to_block_type("> Quote line\nRegular line"), BlockType.PARAGRAPH)
+
+    def test_unordered_list(self):
+        self.assertEqual(block_to_block_type("- Item one"), BlockType.UNORDERED_LIST)
+        self.assertEqual(block_to_block_type("- Item one\n- Item two\n- Item three"), BlockType.UNORDERED_LIST)
+        self.assertEqual(block_to_block_type("- Item 1\n- Item 2"), BlockType.UNORDERED_LIST)
+        
+        self.assertEqual(block_to_block_type("-Item without space"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("- One\nTwo"), BlockType.PARAGRAPH)
+
+    def test_ordered_list(self):
+        self.assertEqual(block_to_block_type("1. First item"), BlockType.ORDERED_LIST)
+        self.assertEqual(block_to_block_type("1. First\n2. Second\n3. Third"), BlockType.ORDERED_LIST)
+        self.assertEqual(block_to_block_type("1. One\n2. Two\n3. Three\n4. Four"), BlockType.ORDERED_LIST)
+        
+        self.assertEqual(block_to_block_type("1.First without space"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("2. Starts with wrong number"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("1. One\n3. Three"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("1. One\n2. Two\n4. Four"), BlockType.PARAGRAPH) 
+        self.assertEqual(block_to_block_type("01. Leading zero"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("1. "), BlockType.PARAGRAPH)
+
+    def test_edge_cases(self):
+        self.assertEqual(block_to_block_type(""), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("a"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("   "), BlockType.PARAGRAPH)
+
+    def test_priority_ordering(self):
+        block = "```\n# This looks like heading but is in code\n```"
+        self.assertEqual(block_to_block_type(block), BlockType.CODE)
+        block = "# This is a heading"
+        self.assertEqual(block_to_block_type(block), BlockType.HEADING)
+
+    def test_complex_ordered_list(self):
+        self.assertEqual(block_to_block_type("1. Alpha\n2. Beta\n3. Gamma"), BlockType.ORDERED_LIST)
+        self.assertEqual(block_to_block_type("1. First\n1. Duplicate"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("2. Wrong start\n3. Second"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G\n8. H\n9. I\n10. J"), BlockType.ORDERED_LIST)
+
 if __name__ == '__main__':
     unittest.main()
+
